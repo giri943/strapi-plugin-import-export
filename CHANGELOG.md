@@ -3,12 +3,17 @@
 This project follows [semantic versioning](https://semver.org/). A change in the supported Strapi
 major version is always a major release here.
 
-## Versioning note
+## Naming note
 
-`strapi-plugin-import-export` was published by someone else in 2021 and fully unpublished. npm
-permanently reserves the version numbers that were used, so **`1.0.0` and `1.0.1` can never be
-published again**. This package therefore uses `0.x` while it stabilises and its first stable
-release will be `1.1.0`.
+The npm package is **`strapi-plugin-csv-import-export`**. The shorter
+`strapi-plugin-import-export` was published by someone else in 2021 and fully unpublished, and npm
+permanently reserves an unpublished name: a publish attempt returns `403 Forbidden`, so the name
+can never be claimed by anyone.
+
+The plugin's own identifier is unaffected and remains **`strapi-import-export`**. That is the key
+in `config/plugins.js`, the prefix of every route (`/strapi-import-export/...`), and the namespace
+of every permission (`plugin::strapi-import-export.*`). Renaming the npm package therefore changes
+nothing for an existing installation.
 
 ## [Unreleased]
 

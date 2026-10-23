@@ -1,4 +1,4 @@
-# strapi-plugin-import-export
+# strapi-plugin-csv-import-export
 
 Bulk CSV import and export for Strapi 5 collections, driven by your own schema.
 
@@ -22,10 +22,14 @@ so supporting it would mean a second admin bundle rather than a compatibility sh
 ## Install
 
 ```bash
-npm install strapi-plugin-import-export
+npm install strapi-plugin-csv-import-export
 npm run build        # rebuild the admin panel so the plugin's UI is included
 npm run develop
 ```
+
+The npm package is `strapi-plugin-csv-import-export`; the plugin itself is called
+`strapi-import-export`, which is the key to use in `config/plugins.js` and the prefix of its
+routes and permissions.
 
 The `npm run build` step is not optional. The plugin ships React components that have to be
 compiled into your admin bundle, so skipping it leaves the CSV menu missing with no error.
@@ -57,10 +61,10 @@ Without `--install` the script only packs, and prints the commands to run by han
 
 ```bash
 # in your Strapi project — npm
-npm install "/tmp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023105159.tgz"
+npm install "/tmp/strapi-plugin-csv-import-export-packs/strapi-plugin-csv-import-export-0.1.0-20261023105159.tgz"
 
 # in your Strapi project — yarn
-yarn add "file:/tmp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023105159.tgz"
+yarn add "file:/tmp/strapi-plugin-csv-import-export-packs/strapi-plugin-csv-import-export-0.1.0-20261023105159.tgz"
 ```
 
 Then delete `node_modules/.strapi/vite`, run the project's own build, and restart.

@@ -1,5 +1,5 @@
 {
-  "name": "strapi-plugin-import-export",
+  "name": "strapi-plugin-csv-import-export",
   "version": "0.1.0",
   "description": "Bulk CSV import and export for Strapi 5 collections: dynamic schema discovery, downloadable templates, relation and component support, streaming jobs, and per-role collection permissions.",
   "license": "MIT",
