@@ -15,7 +15,36 @@ in `config/plugins.js`, the prefix of every route (`/strapi-import-export/...`),
 of every permission (`plugin::strapi-import-export.*`). Renaming the npm package therefore changes
 nothing for an existing installation.
 
-## [Unreleased]
+## [0.1.1] — 2026-10-23
+
+Documentation and metadata only. The published code is identical to `0.1.0`.
+
+### Fixed
+
+- The permissions table in the README listed action ids that no longer exist (`config.read`,
+  `import.run`, `job.read` and so on). The real ids are `read-config`, `update-config`,
+  `download-template`, `run-import`, `run-export` and `read-history`. Anyone following the old
+  table was looking for permissions that are not there.
+- The contributing section claimed 316 unit tests. There are 439, plus 45 integration tests.
+
+### Changed
+
+- Shortened the npm `description` from 183 characters to 121, so it is not truncated in npm
+  search results.
+- Rewrote the README: it now opens with the problem the plugin solves rather than a feature
+  summary, gains a short feature list, and moves the local-development and troubleshooting
+  material out from between "Install" and "Switching it on" into collapsed sections under
+  Contributing.
+- Documented why exported cells containing a space or colon are quoted.
+
+### Added
+
+- Logo assets in `assets/`: a detailed square icon, a simplified mark that stays legible down to
+  32 px, a horizontal wordmark, and PNG renders of each.
+
+## [0.1.0] — 2026-10-23
+
+First published release.
 
 ### Added
 
