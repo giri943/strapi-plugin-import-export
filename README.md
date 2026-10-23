@@ -32,24 +32,43 @@ compiled into your admin bundle, so skipping it leaves the CSV menu missing with
 
 ### Installing a local build
 
-To try an unpublished build in your own project, pack it and install the tarball:
-
 ```bash
 # in the plugin repository
-npm run build
-npm pack                     # writes strapi-plugin-import-export-<version>.tgz
-
-# in your Strapi project
-npm install /path/to/strapi-plugin-import-export-<version>.tgz
-npm run build
-npm run develop
+npm run pack:local
 ```
 
-Prefer the tarball over `npm link` or a `file:` dependency. Those create a symlink, and a plugin
-loaded from outside your project's `node_modules` resolves its own copy of `@strapi/utils`. Its
-error classes then fail Strapi's `instanceof` checks, so every validation error surfaces as a
-**500 with no message** instead of a 400 explaining what is wrong. The code is fine; the module
-identity is not. A tarball install has one copy of everything and behaves like a published one.
+That builds the plugin and prints a ready-to-paste command, for example:
+
+```bash
+# in your Strapi project — npm
+npm install "/tmp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023105159.tgz" && npm run build
+
+# in your Strapi project — yarn
+yarn add "file:/tmp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023105159.tgz" && yarn build
+```
+
+Restart Strapi, then **hard-refresh the browser** (Ctrl+Shift+R) — the cached admin bundle still
+holds the previous build.
+
+#### Why `pack:local` rather than plain `npm pack`
+
+Both npm and yarn cache a `file:` tarball under its package name and version. Reinstalling a
+rebuilt tarball with the *same filename* therefore does one of three unhelpful things:
+
+- reports success and installs the previously cached copy, so your change appears to do nothing;
+- fails with `error Integrity check failed` once the lockfile hash no longer matches;
+- with yarn, either of those depending on the state of its cache.
+
+`npm run pack:local` writes a timestamped filename each time, which has never been cached, so the
+install always reflects the build. Verified against yarn 1.22 and npm 10.
+
+#### Why not `npm link` or `yarn link`
+
+Linking creates a symlink, and a plugin loaded from outside your project's `node_modules`
+resolves its **own** copy of `@strapi/utils`. Its error classes then fail Strapi's `instanceof`
+checks, so every validation error surfaces as a **500 with no message** instead of a 400
+explaining what is wrong. The code is fine; the module identity is not. A tarball install has one
+copy of everything and behaves exactly like a published install.
 
 The plugin is enabled automatically. To configure it in code instead, add a block to
 `config/plugins.ts`:

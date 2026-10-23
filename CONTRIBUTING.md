@@ -8,6 +8,19 @@ npm run build
 npm test
 ```
 
+## Trying a build in a real project
+
+```bash
+npm run pack:local
+```
+
+It builds, packs to a timestamped filename in the OS temp directory, and prints the `npm install`
+and `yarn add` commands to paste into your Strapi project.
+
+The timestamp is load-bearing. Both package managers cache a `file:` tarball by name and version,
+so reinstalling the same filename either silently serves the cached copy or fails an integrity
+check against the lockfile. Do not "simplify" the script by dropping it.
+
 ## Running the checks
 
 ```bash

@@ -30,6 +30,20 @@ release will be `1.1.0`.
 
 ### Fixed
 
+- Every CSV download (template, column guide, export, error report) failed in the browser with
+  `Failed to execute 'createObjectURL' on 'URL': Overload resolution failed`. Strapi's fetch
+  client `post` does not forward `responseType` to its response interceptor, so a `text/csv`
+  body was run through `response.json()`, the resulting `SyntaxError` was swallowed as "empty
+  body", and the caller received `{}` instead of a `Blob`. Downloads now read the response body
+  themselves, which also lets a JSON error response be reported as a message instead of being
+  saved to disk as a broken CSV.
+- Permission action ids are single hyphenated segments (`run-import` rather than `import.run`).
+  The admin panel derives each permission flag from the **last dot-separated segment** of the
+  action id, so `config.read` and `job.read` both became `canRead`, and `import.run` and
+  `export.run` both became `canRun`. Every flag the panel exposed therefore differed from the one
+  the components read, which left the plugin page spinning forever and hid the CSV menu in the
+  Content Manager entirely.
+- Menu and settings links use a non-async component loader, clearing Strapi's deprecation warning.
 - `@strapi/utils` is declared as a peer dependency so the bundler leaves it external. It was
   previously inlined, which both bloated the server bundle from 121 kB to 816 kB and broke
   Strapi's `instanceof` checks, turning every validation error into a 500.
