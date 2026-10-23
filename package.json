@@ -1,6 +1,6 @@
 {
   "name": "strapi-plugin-csv-import-export",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Import and export Strapi 5 collections as CSV, with schema-driven templates, dry-run validation and per-role permissions.",
   "license": "MIT",
   "author": "girish-soman",
