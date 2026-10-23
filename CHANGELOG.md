@@ -15,6 +15,26 @@ in `config/plugins.js`, the prefix of every route (`/strapi-import-export/...`),
 of every permission (`plugin::strapi-import-export.*`). Renaming the npm package therefore changes
 nothing for an existing installation.
 
+## [0.1.2] — 2026-10-23
+
+Documentation only. The published code is identical to `0.1.0` and `0.1.1`.
+
+### Changed
+
+- The README is 152 lines instead of 428. It now covers the problem, install, setup, importing,
+  exporting and the column shapes, and nothing else. A first-time reader is no longer walked
+  through the full settings reference and a troubleshooting guide before reaching "Switch it on".
+- Local development, `pack:local`, why linking breaks, and the `better-sqlite3` ABI error moved
+  into `CONTRIBUTING.md`, where contributors will actually look for them.
+
+### Added
+
+- `docs/configuration.md` — the six permissions, every setting, seeding from `config/plugins.ts`,
+  and how relation match keys and label fields are chosen.
+- `docs/security.md` — what is hardened and why, plus the known limitations.
+- `docs/api.md` — every endpoint, with the export filter payload and the reason it takes field
+  names and ids rather than a raw Strapi filter object.
+
 ## [0.1.1] — 2026-10-23
 
 Documentation and metadata only. The published code is identical to `0.1.0`.
