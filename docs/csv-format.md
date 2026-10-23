@@ -84,16 +84,30 @@ followed by a real one.
 
 ### Relations
 
-The column names the attribute and the field used to find the target:
+Each relation produces **two** columns: one that identifies the entry and one that reads well.
 
 ```
-author:email        a single Author, matched on its email
-tags:slug           one or more Tags, matched on their slugs
+category:documentId    the match key — an import resolves this
+category:name          the label — read only, ignored on import
 ```
 
-The lookup field is configured per target collection on the configuration page. Only
+The **match key** is configured per target collection on the configuration page. Only
 `documentId`, `uid` fields and fields marked `unique` can be chosen, because anything else could
 match several entries and the import would silently pick one.
+
+The **label** only has to be readable, so any plain text, number or enumeration field qualifies
+and uniqueness is irrelevant. It is guessed from `name`, `title`, `label`, `displayName`,
+`heading` in that order, and can be changed or switched off per target.
+
+Two categories both called "Shared" therefore export as two rows with the same
+`category:name` but different `category:documentId`, and re-import to the right one.
+
+If you would rather have a single readable column, set the match key to a unique field such as
+`slug`. The label column then disappears, because it would duplicate the match column:
+
+```
+category:slug          both readable and importable
+```
 
 Several references go in one cell, separated by the list delimiter (`;` by default):
 

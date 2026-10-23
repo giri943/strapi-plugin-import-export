@@ -1,10 +1,14 @@
 import type { Core } from '@strapi/strapi';
 import { BLOCKED_ATTRIBUTE_NAMES, BLOCKED_CONTENT_TYPES, PLUGIN_NAME } from '../constants';
 import {
+  DEFAULT_RELATION_LOOKUP_KEY,
   buildColumns,
   displayNameOf,
+  guessLabelKey,
   hasDraftAndPublish,
   isLocalized,
+  isUsableLabelKey,
+  listUsableLabelKeys,
   listUsableLookupKeys,
 } from '../core/schema';
 import type { ColumnDescriptor, ContentTypeSchema } from '../core/types';
@@ -22,9 +26,19 @@ export interface CollectionSummary {
   columnCount: number;
 }
 
+export interface RelationTarget {
+  uid: string;
+  displayName: string;
+  /** Attributes that can identify a single entry, usable as the import match key. */
+  lookupKeys: string[];
+  /** Attributes readable enough to show in the label column. Uniqueness is not required. */
+  labelKeys: string[];
+  suggestedLabelKey?: string;
+}
+
 export interface CollectionDescription extends CollectionSummary {
   columns: ColumnDescriptor[];
-  relationTargets: Array<{ uid: string; displayName: string; lookupKeys: string[] }>;
+  relationTargets: RelationTarget[];
   unsupported: Array<{ field: string; reason: string }>;
 }
 
@@ -59,6 +73,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       repeatableColumns: settings.templateRepeatableSlots,
       maxDepth: settings.maxComponentDepth,
       relationLookupKeys: collection.relationLookupKeys,
+      relationLabelKeys: collection.relationLabelKeys,
       mediaLookupKey: settings.mediaLookupKey,
       excludeFields: [...collection.excludeFields, ...BLOCKED_ATTRIBUTE_NAMES],
     };
@@ -92,7 +107,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
   }
 
   function collectRelationTargets(columns: readonly ColumnDescriptor[]) {
-    const seen = new Map<string, { uid: string; displayName: string; lookupKeys: string[] }>();
+    const seen = new Map<string, RelationTarget>();
 
     for (const column of columns) {
       if (column.kind !== 'relation' || !column.targetUid) continue;
@@ -105,10 +120,51 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
         uid: column.targetUid,
         displayName: displayNameOf(target),
         lookupKeys: listUsableLookupKeys(target),
+        labelKeys: listUsableLabelKeys(target),
+        suggestedLabelKey: guessLabelKey(target),
       });
     }
 
     return [...seen.values()];
+  }
+
+  /**
+   * Resolves a filterable relation field to the information needed to offer its values: the
+   * target collection and the attribute to search and display.
+   */
+  function describeRelationField(
+    uid: string,
+    field: string,
+    settings: PluginSettings,
+    collection: CollectionConfig
+  ): { targetUid: string; labelKey: string; lookupKey: string } | undefined {
+    const columns = columnsFor(uid, settings, collection);
+
+    const column = columns.find(
+      (candidate) =>
+        candidate.kind === 'relation' &&
+        !candidate.isLabel &&
+        candidate.path.length === 1 &&
+        candidate.path[0]?.field === field &&
+        candidate.path[0]?.index === undefined
+    );
+
+    if (!column?.targetUid) return undefined;
+
+    const target = resolver().getContentType(column.targetUid);
+    if (!target) return undefined;
+
+    const configured = collection.relationLabelKeys[column.targetUid];
+    const labelKey =
+      configured !== undefined && configured !== '' && isUsableLabelKey(target, configured)
+        ? configured
+        : (guessLabelKey(target) ?? column.lookupKey ?? DEFAULT_RELATION_LOOKUP_KEY);
+
+    return {
+      targetUid: column.targetUid,
+      labelKey,
+      lookupKey: column.lookupKey ?? DEFAULT_RELATION_LOOKUP_KEY,
+    };
   }
 
   /**
@@ -147,6 +203,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
     listCandidates,
     columnsFor,
     columnOptionsFor,
+    describeRelationField,
     describe,
 
     getContentType(uid: string): ContentTypeSchema | undefined {

@@ -1,16 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Button,
+  Divider,
   Field,
   Flex,
+  Loader,
   Modal,
   SingleSelect,
   SingleSelectOption,
   Typography,
 } from '@strapi/design-system';
 import { Download } from '@strapi/icons';
+import { fetchColumns, type ColumnsResponse } from '../utils/api';
 import { endpointPaths, exportFileName, useCsvDownload } from '../utils/download';
+import { loadColumnSelection, saveColumnSelection } from '../utils/column-preferences';
+import { ColumnPicker } from './ColumnPicker';
+import {
+  ExportFilters,
+  toDatePayload,
+  toRelationPayload,
+  type DateFilterDraft,
+  type RelationFilterDraft,
+} from './ExportFilters';
 
 interface ExportDialogProps {
   uid: string;
@@ -29,22 +41,50 @@ export const ExportDialog = ({
   onClose,
 }: ExportDialogProps) => {
   const csv = useCsvDownload();
+
+  const [meta, setMeta] = useState<ColumnsResponse | null>(null);
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
+  const [columns, setColumns] = useState<string[]>([]);
+  const [relationFilters, setRelationFilters] = useState<RelationFilterDraft[]>([]);
+  const [dateFilters, setDateFilters] = useState<DateFilterDraft[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectionCount = selectedDocumentIds?.length ?? 0;
+
+  useEffect(() => {
+    let active = true;
+
+    fetchColumns(uid)
+      .then((response) => {
+        if (!active) return;
+        setMeta(response);
+        setColumns(loadColumnSelection(uid) ?? []);
+      })
+      .catch((cause: unknown) => {
+        if (active) setError(cause instanceof Error ? cause.message : 'Could not read the schema.');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [uid]);
 
   const download = async () => {
     setBusy(true);
     setError(null);
 
     try {
+      saveColumnSelection(uid, columns);
+
       await csv.downloadWithBody(
         endpointPaths.export(uid),
         {
           status: hasDraftAndPublish ? status : undefined,
           documentIds: selectionCount > 0 ? selectedDocumentIds : undefined,
+          columns: columns.length > 0 ? columns : undefined,
+          relationFilters: toRelationPayload(relationFilters),
+          dateFilters: toDatePayload(dateFilters),
         },
         exportFileName(uid)
       );
@@ -55,6 +95,9 @@ export const ExportDialog = ({
       setBusy(false);
     }
   };
+
+  // A row selection already says which entries to take, so filters would only contradict it.
+  const filtersApply = selectionCount === 0;
 
   return (
     <Modal.Root open onOpenChange={(open: boolean) => (!open && !busy ? onClose() : undefined)}>
@@ -81,7 +124,7 @@ export const ExportDialog = ({
                 ? `Exporting the ${selectionCount} selected ${
                     selectionCount === 1 ? 'entry' : 'entries'
                   }.`
-                : 'Exporting every entry you are allowed to read.'}
+                : 'Exporting every entry you are allowed to read, narrowed by the filters below.'}
             </Typography>
 
             {hasDraftAndPublish ? (
@@ -108,6 +151,40 @@ export const ExportDialog = ({
               </Field.Root>
             ) : null}
 
+            {!meta ? (
+              <Flex justifyContent="center" padding={4}>
+                <Loader small>Reading the schema</Loader>
+              </Flex>
+            ) : (
+              <>
+                {filtersApply ? (
+                  <>
+                    <Divider />
+                    <ExportFilters
+                      uid={uid}
+                      filterableRelations={meta.filterableRelations}
+                      filterableDates={meta.filterableDates}
+                      relationFilters={relationFilters}
+                      dateFilters={dateFilters}
+                      onRelationFiltersChange={setRelationFilters}
+                      onDateFiltersChange={setDateFilters}
+                      disabled={busy}
+                      onError={setError}
+                    />
+                  </>
+                ) : null}
+
+                <Divider />
+                <ColumnPicker
+                  columns={meta.columns}
+                  selected={columns}
+                  onChange={setColumns}
+                  identifierHeader={meta.identifierHeader}
+                  disabled={busy}
+                />
+              </>
+            )}
+
             <Typography variant="pi" textColor="neutral600">
               Fields your role cannot read are left out of the file, and password fields are never
               included.
@@ -119,7 +196,7 @@ export const ExportDialog = ({
           <Button variant="tertiary" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button startIcon={<Download />} onClick={download} loading={busy}>
+          <Button startIcon={<Download />} onClick={download} loading={busy} disabled={!meta}>
             Download CSV
           </Button>
         </Modal.Footer>

@@ -3,7 +3,7 @@ import type { Core } from '@strapi/strapi';
 import { BLOCKED_ATTRIBUTE_NAMES, PLUGIN_NAME } from '../constants';
 import { SETTING_BOUNDS } from '../config';
 import { SUPPORTED_DELIMITERS, isSupportedDelimiter } from '../core/csv';
-import { SUPPORTED_MEDIA_LOOKUP_KEYS, isUsableLookupKey } from '../core/schema';
+import { SUPPORTED_MEDIA_LOOKUP_KEYS, isUsableLabelKey, isUsableLookupKey } from '../core/schema';
 import {
   DEFAULT_COLLECTION_CONFIG,
   normaliseCollectionConfig,
@@ -45,6 +45,28 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
     }
   }
 
+  /**
+   * A label key only has to be readable, so the rule is much looser than for a match key. An
+   * empty string is valid and means "no label column for this target".
+   */
+  function validateLabelKeys(uid: string, keys: Record<string, string>): void {
+    const schemaService = plugin().service('schema');
+
+    for (const [targetUid, key] of Object.entries(keys)) {
+      if (key === '') continue;
+
+      const target = schemaService.getContentType(targetUid);
+      if (!target) {
+        throw new errors.ValidationError(`Unknown relation target "${targetUid}" on ${uid}.`);
+      }
+      if (!isUsableLabelKey(target, key)) {
+        throw new errors.ValidationError(
+          `"${key}" cannot be shown as the label for ${targetUid}. Pick a plain text, number or enumeration field.`
+        );
+      }
+    }
+  }
+
   function validateCollections(raw: unknown): Record<string, unknown> {
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
       throw new errors.ValidationError('collections must be an object keyed by content-type uid.');
@@ -62,6 +84,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
 
       const config = normaliseCollectionConfig(value);
       validateLookupKeys(uid, config.relationLookupKeys);
+      validateLabelKeys(uid, config.relationLabelKeys);
 
       const target = schemaService.getContentType(uid);
       if (target && !isUsableLookupKey(target, config.identifierField)) {

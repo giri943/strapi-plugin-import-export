@@ -19,6 +19,12 @@ export interface CollectionConfig {
   excludeFields: string[];
   /** Target content-type uid to the attribute used for matching, e.g. `api::tag.tag` to `slug`. */
   relationLookupKeys: Record<string, string>;
+  /**
+   * Target content-type uid to the attribute shown in the readable label column. An empty string
+   * switches the label column off for that target; a target left out falls back to a guess from
+   * the usual label names (`name`, `title`, …).
+   */
+  relationLabelKeys: Record<string, string>;
   /** Column used to decide whether a row updates an existing entry. */
   identifierField: string;
 }
@@ -62,6 +68,7 @@ export const DEFAULT_COLLECTION_CONFIG: CollectionConfig = {
   allowExport: false,
   excludeFields: [],
   relationLookupKeys: {},
+  relationLabelKeys: {},
   identifierField: DEFAULT_RELATION_LOOKUP_KEY,
 };
 
@@ -101,6 +108,22 @@ function asLookupKeyMap(raw: unknown): Record<string, string> {
   return out;
 }
 
+/**
+ * Like `asLookupKeyMap` but keeps an explicit empty string, which means "no label column for
+ * this target" and has to be told apart from "not configured, so guess one".
+ */
+function asLabelKeyMap(raw: unknown): Record<string, string> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+
+  const out: Record<string, string> = {};
+  for (const [uid, key] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof key === 'string') {
+      out[uid] = key.trim();
+    }
+  }
+  return out;
+}
+
 export function normaliseCollectionConfig(raw: unknown): CollectionConfig {
   if (typeof raw !== 'object' || raw === null) return { ...DEFAULT_COLLECTION_CONFIG };
 
@@ -115,6 +138,7 @@ export function normaliseCollectionConfig(raw: unknown): CollectionConfig {
     allowExport: enabled && asBoolean(input.allowExport, false),
     excludeFields: asStringArray(input.excludeFields),
     relationLookupKeys: asLookupKeyMap(input.relationLookupKeys),
+    relationLabelKeys: asLabelKeyMap(input.relationLabelKeys),
     identifierField:
       typeof input.identifierField === 'string' && input.identifierField.trim().length > 0
         ? input.identifierField.trim()

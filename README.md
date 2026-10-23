@@ -62,6 +62,23 @@ rebuilt tarball with the *same filename* therefore does one of three unhelpful t
 `npm run pack:local` writes a timestamped filename each time, which has never been cached, so the
 install always reflects the build. Verified against yarn 1.22 and npm 10.
 
+#### If the database driver complains about a Node version
+
+```
+The module 'better_sqlite3.node' was compiled against a different Node.js version
+using NODE_MODULE_VERSION 115. This version of Node.js requires NODE_MODULE_VERSION 127.
+```
+
+Your Node version changed since the native driver was installed. Rebuild it in whichever project
+reports the error:
+
+```bash
+npm rebuild better-sqlite3
+```
+
+This affects the plugin repository and the playground independently, because each has its own
+copy.
+
 #### Why not `npm link` or `yarn link`
 
 Linking creates a symlink, and a plugin loaded from outside your project's `node_modules`
@@ -162,12 +179,50 @@ through **CSV Import & Export** in the main menu.
 
 ## Exporting
 
-Open the **CSV** menu and choose **Export to CSV**. For a collection with draft & publish you pick
-which version to export; the `status` column in the file records which one it was.
+Open the **CSV** menu and choose **Export to CSV**.
+
+**Which rows.** Add one filter per relation — for example only the articles in the *News* and
+*Sport* categories — and a date range on `createdAt`, `updatedAt` or `publishedAt`. Several
+values in one filter mean "any of these"; several filters all have to match. Selecting rows in
+the List View first exports exactly those instead, and hides the filters.
+
+**Which columns.** Tick the columns you want. Nothing ticked means every column. The choice is
+remembered per collection, and the same picker applies to the template download so you can hand
+someone a narrow sheet to fill in.
+
+If you deselect the identifier column the export still works, with a warning: that file can no
+longer be used to update these entries, because an import would have nothing to match on and
+would create new ones.
+
+**Which version.** For a collection with draft & publish you pick one; the `status` column in the
+file records which it was.
 
 Rows are streamed and paged, so memory use does not grow with the size of the collection. Fields
 your role cannot read are left out of the file, and `password` and `private` fields are never
 included.
+
+### Filtering through the API
+
+The export endpoint takes a deliberately narrow payload — a field name and a list of ids, never a
+raw Strapi filter object, so a caller cannot reach a column the plugin does not expose:
+
+```jsonc
+POST /strapi-import-export/content/api::article.article/export
+{
+  "status": "draft",
+  "columns": ["documentId", "title", "category:name"],
+  "relationFilters": [
+    { "field": "category", "documentIds": ["k2m9x…", "p4r7y…"] }
+  ],
+  "dateFilters": [
+    { "field": "createdAt", "from": "2026-01-01", "to": "2026-01-31" }
+  ]
+}
+```
+
+A bare `YYYY-MM-DD` in `to` covers the whole of that day. Values for the dropdowns come from
+`GET /content/:uid/relation-options?field=category&q=news`, which only lists entries from a
+collection you are allowed to read.
 
 ## CSV format
 
@@ -178,13 +233,32 @@ Full details in **[docs/csv-format.md](docs/csv-format.md)**. The short version:
 | Scalar | `title` | `Hello world` |
 | Single component | `seo.metaTitle` | `Hello world` |
 | Repeatable component | `faq[0].question` | `Why?` |
-| Single relation | `author:email` | `ada@example.com` |
-| Many relation | `tags:slug` | `news;sport` |
+| Single relation | `category:documentId` | `k2m9x…` |
+| Relation label (read only) | `category:name` | `News` |
+| Many relation | `tags:documentId` | `k2m9x…;p4r7y…` |
 | Media | `cover:name` | `hero.webp` |
 | Dynamic zone | `sections` | `[{"__component":"blocks.hero","heading":"Hi"}]` |
 | Identifier | `documentId` | `abc123…` |
 | Draft & publish | `status` | `draft` or `published` |
 | i18n | `locale` | `en` |
+
+### Relations get two columns
+
+An export of a relation is readable and re-importable at the same time, because it writes both:
+
+- **`category:documentId`** — the value that identifies exactly one entry. This is what an import
+  matches on.
+- **`category:name`** — read only, there so a person can tell what the row points at. An import
+  ignores it.
+
+The label field is guessed from the usual names (`name`, `title`, `label`, `displayName`,
+`heading`). Change it, or switch the column off, under **Settings → CSV Import & Export →
+Configuration → Relations → Configure**.
+
+You can also match on a readable field instead, by setting **Match on** to something like `slug`.
+Only fields that identify a single entry are offered there — `documentId`, `uid` fields and fields
+marked unique — because a non-unique match key would make an import attach rows to whichever
+entry the database happened to return first.
 
 ## Configuration reference
 

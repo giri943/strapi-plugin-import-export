@@ -17,7 +17,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.3",
-    "strapi-plugin-import-export": "file:../strapi-plugin-import-export-0.1.0.tgz",
+    "strapi-plugin-import-export": "file:C:/Users/USER/AppData/Local/Temp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023120749.tgz",
     "styled-components": "^6.4.0"
   },
   "engines": {

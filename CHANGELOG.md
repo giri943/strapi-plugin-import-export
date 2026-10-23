@@ -14,6 +14,20 @@ release will be `1.1.0`.
 
 ### Added
 
+- **Readable relation columns.** Every relation now exports two columns: `category:documentId`
+  for matching and a read-only `category:name` so the file can be read by a person. The label
+  field is guessed from the usual names and is configurable per target collection, including off.
+  Uniqueness is not required of a label, which is the point — a category `name` is normally not
+  unique and so could never be used as a match key.
+- **Export filters.** One filter per relation plus a date range on `createdAt`, `updatedAt` or
+  `publishedAt`. Several values in a filter mean "any of"; several filters all have to match. The
+  payload is a field name and a list of ids rather than a Strapi filter object, and the dropdown
+  values come from an endpoint that only lists collections the caller may read.
+- **Column selection.** Choose which columns an export or a template contains. The choice is
+  remembered per collection, and deselecting the identifier column warns that the file can no
+  longer be used for updates.
+- A **Relations → Configure** dialog on the settings page for the match key and label field of
+  each related collection.
 - CSV import and export for Strapi 5 collection types, reached from a **CSV** menu in the Content
   Manager List View.
 - Template and column-guide downloads generated from the live schema.

@@ -5,6 +5,8 @@ import { JOB_KIND, PLUGIN_NAME } from '../constants';
 import { CONTENT_MANAGER_ACTIONS, type AccessContext } from '../services/rbac';
 import { DEFAULT_COLLECTION_CONFIG, type PluginSettings } from '../services/settings';
 import type { ImportMode } from '../core/types';
+import { parseExportFilters, relationFilterFields } from '../core/export-filters';
+import { asHeaderList, parseColumnsParam, selectColumns } from '../core/select-columns';
 import { inspectUpload, type UploadedFile } from '../utils/upload-guard';
 import { discardStagedFile, stageUpload } from '../utils/temp-file';
 import type { RequestContext } from '../types';
@@ -157,15 +159,28 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       const uid = uidFrom(ctx);
       const { settings, collection, columns } = await contextFor(uid);
 
+      const schema = plugin().service('schema').getContentType(uid);
+
       ctx.body = {
         uid,
         columns,
         identifierField: collection.identifierField,
+        /** The header the identifier lives in, so the UI can warn before it is deselected. */
+        identifierHeader: collection.identifierField,
         allowImport: collection.allowImport,
         allowExport: collection.allowExport,
         defaultImportMode: settings.defaultImportMode,
         multiValueDelimiter: settings.multiValueDelimiter,
         csvDelimiter: settings.csvDelimiter,
+        /** Top-level relation fields an export can be filtered on. */
+        filterableRelations: [...relationFilterFields(columns)],
+        filterableDates: [
+          'createdAt',
+          'updatedAt',
+          ...(schema?.options?.draftAndPublish === true ? ['publishedAt'] : []),
+        ],
+        hasDraftAndPublish: schema?.options?.draftAndPublish === true,
+        localized: schema?.pluginOptions?.i18n?.localized === true,
         limits: {
           maxFileSizeMb: settings.maxFileSizeMb,
           maxRows: settings.maxRows,
@@ -178,13 +193,75 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       const uid = uidFrom(ctx);
       const { settings, columns } = await contextFor(uid);
 
+      const selection = selectColumns(columns, parseColumnsParam(ctx.query.columns));
       const wantsGuide = String(ctx.query.guide ?? '') === '1';
+
       const file = wantsGuide
-        ? plugin().service('template').buildGuide(uid, columns, settings)
-        : plugin().service('template').buildTemplate(uid, columns, settings);
+        ? plugin().service('template').buildGuide(uid, selection.columns, settings)
+        : plugin().service('template').buildTemplate(uid, selection.columns, settings);
 
       asAttachment(ctx, file.fileName);
       ctx.body = file.content;
+    },
+
+    /**
+     * Values a relation filter can offer.
+     *
+     * Reading another collection's entries needs permission on *that* collection, not just on
+     * the one being exported, so this checks the target before listing anything.
+     */
+    async relationOptions(ctx: RequestContext) {
+      const uid = uidFrom(ctx);
+      const field = String(ctx.query.field ?? '').trim();
+
+      if (field.length === 0) {
+        throw new errors.ValidationError('A relation field is required.');
+      }
+
+      const { settings, collection } = await contextFor(uid);
+      const resolved = plugin().service('schema').describeRelationField(uid, field, settings, collection);
+
+      if (!resolved) {
+        throw new errors.ValidationError(
+          `"${field}" is not a relation on this collection that can be filtered.`
+        );
+      }
+
+      const state = ctx.state as AccessContext;
+      const targetChecker = state.userAbility
+        ? plugin().service('rbac').createChecker(resolved.targetUid, state.userAbility)
+        : undefined;
+
+      const canReadTarget = targetChecker
+        ? targetChecker.can.read()
+        : (state.userAbility?.can(CONTENT_MANAGER_ACTIONS.read, resolved.targetUid) ?? false);
+
+      if (!canReadTarget) {
+        throw new errors.PolicyError(
+          `You cannot read ${resolved.targetUid}, so its values cannot be listed.`,
+          { code: 'target_not_readable' }
+        );
+      }
+
+      const search = String(ctx.query.q ?? '').trim();
+      const pageSize = Math.min(Math.max(Number(ctx.query.pageSize) || 50, 1), 200);
+      const page = Math.max(Number(ctx.query.page) || 1, 1);
+
+      const result = await plugin().service('export').listRelationOptions({
+        targetUid: resolved.targetUid,
+        labelKey: resolved.labelKey,
+        search,
+        page,
+        pageSize,
+        checker: targetChecker,
+      });
+
+      ctx.body = {
+        field,
+        targetUid: resolved.targetUid,
+        labelKey: resolved.labelKey,
+        ...result,
+      };
     },
 
     async export(ctx: RequestContext) {
@@ -203,6 +280,16 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
             .slice(0, MAX_SELECTED_DOCUMENTS)
         : undefined;
 
+      const schema = plugin().service('schema').getContentType(uid);
+      const parsedFilters = parseExportFilters(columns, body, {
+        hasDraftAndPublish: schema?.options?.draftAndPublish === true,
+      });
+      if (!parsedFilters.ok) {
+        throw new errors.ValidationError(parsedFilters.message, { code: parsedFilters.code });
+      }
+
+      const selection = selectColumns(columns, asHeaderList(body.columns));
+
       const exportService = plugin().service('export');
 
       asAttachment(ctx, exportService.fileNameFor(uid));
@@ -216,13 +303,15 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
         .streamTo(
           {
             uid,
-            columns,
+            columns: selection.columns,
             settings,
             collection,
             checker,
             status: body.status === 'published' ? 'published' : 'draft',
             locale: typeof body.locale === 'string' ? body.locale : undefined,
             documentIds,
+            relationFilters: parsedFilters.relations,
+            dateFilters: parsedFilters.dates,
           },
           output
         )

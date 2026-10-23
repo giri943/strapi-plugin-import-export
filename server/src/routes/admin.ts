@@ -71,6 +71,14 @@ export default {
       },
     },
     {
+      method: 'GET' as const,
+      path: '/content/:uid/relation-options',
+      handler: 'content.relationOptions',
+      config: {
+        policies: [...requireActions(PLUGIN_ACTIONS.exportRun), collectionGate('export')],
+      },
+    },
+    {
       method: 'POST' as const,
       path: '/content/:uid/export',
       handler: 'content.export',

@@ -1,4 +1,9 @@
-import { DEFAULT_RELATION_LOOKUP_KEY, MEDIA_UID, isSensitiveAttribute } from './schema';
+import {
+  DEFAULT_RELATION_LOOKUP_KEY,
+  MEDIA_UID,
+  guessLabelKey,
+  isSensitiveAttribute,
+} from './schema';
 import type {
   ComponentAttribute,
   DynamicZoneAttribute,
@@ -16,6 +21,8 @@ export interface PopulateOptions {
   maxDepth?: number;
   /** Target content-type uid to the attribute used for matching that target. */
   relationLookupKeys?: Record<string, string>;
+  /** Target content-type uid to the attribute shown in the readable label column. */
+  relationLabelKeys?: Record<string, string>;
   excludeFields?: readonly string[];
 }
 
@@ -36,6 +43,7 @@ export function buildPopulate(
   const settings = {
     maxDepth: Math.max(1, options.maxDepth ?? 3),
     relationLookupKeys: options.relationLookupKeys ?? {},
+    relationLabelKeys: options.relationLabelKeys ?? {},
     excludeFields: new Set(options.excludeFields ?? []),
   };
 
@@ -55,6 +63,7 @@ export function buildPopulate(
 type ResolvedPopulateOptions = {
   maxDepth: number;
   relationLookupKeys: Record<string, string>;
+  relationLabelKeys: Record<string, string>;
   excludeFields: Set<string>;
 };
 
@@ -75,9 +84,22 @@ function branchFor(
 
       if (relation.target === MEDIA_UID) return { fields: MEDIA_FIELDS };
 
-      const lookupKey = options.relationLookupKeys[relation.target];
+      const target = resolver.getContentType(relation.target);
       const fields = new Set([DEFAULT_RELATION_LOOKUP_KEY, 'id']);
+
+      const lookupKey = options.relationLookupKeys[relation.target];
       if (lookupKey) fields.add(lookupKey);
+
+      // The label column renders from this field, so an export would show blanks without it.
+      const configuredLabel = options.relationLabelKeys[relation.target];
+      const labelKey =
+        configuredLabel !== undefined
+          ? configuredLabel
+          : target
+            ? guessLabelKey(target)
+            : undefined;
+
+      if (labelKey) fields.add(labelKey);
 
       return { fields: [...fields] };
     }

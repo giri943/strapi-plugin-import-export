@@ -21,6 +21,8 @@ import {
   type JobRecord,
 } from '../utils/api';
 import { endpointPaths, suggestFileName, useCsvDownload } from '../utils/download';
+import { loadColumnSelection, saveColumnSelection } from '../utils/column-preferences';
+import { ColumnPicker } from './ColumnPicker';
 import { JobReport } from './JobReport';
 
 const POLL_INTERVAL_MS = 1_000;
@@ -51,6 +53,8 @@ export const ImportDialog = ({
 }: ImportDialogProps) => {
   const csv = useCsvDownload();
   const [meta, setMeta] = useState<ColumnsResponse | null>(null);
+  const [templateColumns, setTemplateColumns] = useState<string[]>([]);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<ImportMode>('upsert');
   const [phase, setPhase] = useState<Phase>('choose');
@@ -77,6 +81,7 @@ export const ImportDialog = ({
         if (!active) return;
         setMeta(response);
         setMode(response.defaultImportMode);
+        setTemplateColumns(loadColumnSelection(`${uid}:template`) ?? []);
       })
       .catch((cause: unknown) => {
         if (active) setError(cause instanceof Error ? cause.message : 'Could not read the schema.');
@@ -132,10 +137,17 @@ export const ImportDialog = ({
     setError(null);
 
     try {
-      await csv.download(
-        guide ? endpointPaths.guide(uid) : endpointPaths.template(uid),
-        suggestFileName(uid, guide ? 'guide' : 'template')
-      );
+      const base = guide ? endpointPaths.guide(uid) : endpointPaths.template(uid);
+      const path =
+        templateColumns.length > 0
+          ? `${base}${base.includes('?') ? '&' : '?'}columns=${encodeURIComponent(
+              templateColumns.join(',')
+            )}`
+          : base;
+
+      saveColumnSelection(`${uid}:template`, templateColumns);
+
+      await csv.download(path, suggestFileName(uid, guide ? 'guide' : 'template'));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not download the template.');
     }
@@ -175,22 +187,46 @@ export const ImportDialog = ({
             {meta ? (
               <>
                 {canDownloadTemplate ? (
-                  <Flex gap={2} wrap="wrap">
-                    <Button
-                      variant="secondary"
-                      startIcon={<Download />}
-                      onClick={() => downloadTemplate(false)}
-                      disabled={busy}
-                    >
-                      Download template
-                    </Button>
-                    <Button
-                      variant="tertiary"
-                      onClick={() => downloadTemplate(true)}
-                      disabled={busy}
-                    >
-                      Download column guide
-                    </Button>
+                  <Flex direction="column" alignItems="stretch" gap={3}>
+                    <Flex gap={2} wrap="wrap">
+                      <Button
+                        variant="secondary"
+                        startIcon={<Download />}
+                        onClick={() => downloadTemplate(false)}
+                        disabled={busy}
+                      >
+                        Download template
+                      </Button>
+                      <Button
+                        variant="tertiary"
+                        onClick={() => downloadTemplate(true)}
+                        disabled={busy}
+                      >
+                        Download column guide
+                      </Button>
+                      <Button
+                        variant="tertiary"
+                        onClick={() => setShowColumnPicker((open) => !open)}
+                        disabled={busy}
+                      >
+                        {showColumnPicker
+                          ? 'Hide columns'
+                          : templateColumns.length > 0
+                            ? `Choose columns (${templateColumns.length})`
+                            : 'Choose columns'}
+                      </Button>
+                    </Flex>
+
+                    {showColumnPicker ? (
+                      <ColumnPicker
+                        columns={meta.columns}
+                        selected={templateColumns}
+                        onChange={setTemplateColumns}
+                        identifierHeader={meta.identifierHeader}
+                        disabled={busy}
+                        hideReadOnly
+                      />
+                    ) : null}
                   </Flex>
                 ) : null}
 

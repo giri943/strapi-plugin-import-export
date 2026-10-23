@@ -5,7 +5,9 @@ import type { Core } from '@strapi/strapi';
 import { PLUGIN_NAME } from '../constants';
 import { UTF8_BOM } from '../core/csv';
 import { buildPopulate } from '../core/populate';
+import { buildFilters, type DateFilter, type RelationFilter } from '../core/export-filters';
 import { renderRow } from '../core/render-row';
+import { formatScalar } from '../core/coerce';
 import { META_STATUS, hasDraftAndPublish, isLocalized } from '../core/schema';
 import type { ColumnDescriptor } from '../core/types';
 import { jobLogLine } from '../utils/safe-log';
@@ -26,7 +28,9 @@ export interface ExportRequest {
   locale?: string;
   /** documentIds to restrict the export to, used by the List View bulk action. */
   documentIds?: string[];
-  filters?: Record<string, unknown>;
+  /** Already validated against this collection's columns by the controller. */
+  relationFilters?: RelationFilter[];
+  dateFilters?: DateFilter[];
 }
 
 export interface ExportResult {
@@ -55,13 +59,15 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
     const populate = buildPopulate(resolver, request.uid, {
       maxDepth: request.settings.maxComponentDepth,
       relationLookupKeys: request.collection.relationLookupKeys,
+      relationLabelKeys: request.collection.relationLabelKeys,
       excludeFields: request.collection.excludeFields,
     });
 
-    const filters: Record<string, unknown> = { ...(request.filters ?? {}) };
-    if (request.documentIds && request.documentIds.length > 0) {
-      filters.documentId = { $in: request.documentIds };
-    }
+    const filters = buildFilters({
+      relations: request.relationFilters ?? [],
+      dates: request.dateFilters ?? [],
+      documentIds: request.documentIds,
+    });
 
     const query: Record<string, unknown> = {
       populate,
@@ -69,7 +75,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       sort: 'id:asc',
       status: resolveStatus(request.uid, request.status),
       locale: resolveLocale(request.uid, request.locale),
-      filters: Object.keys(filters).length > 0 ? filters : undefined,
+      filters,
     };
 
     if (!request.checker) return query;
@@ -173,6 +179,59 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       );
 
       return result;
+    },
+
+    /**
+     * Lists the entries of a related collection so a filter can offer them.
+     *
+     * The caller's own query sanitiser is applied, so a role limited to a subset of the target
+     * collection only ever sees that subset in the dropdown.
+     */
+    async listRelationOptions(input: {
+      targetUid: string;
+      labelKey: string;
+      search: string;
+      page: number;
+      pageSize: number;
+      checker?: PermissionChecker;
+    }): Promise<{ options: Array<{ documentId: string; label: string }>; total: number; page: number; pageSize: number }> {
+      const filters =
+        input.search.length > 0 ? { [input.labelKey]: { $containsi: input.search } } : undefined;
+
+      const baseQuery: Record<string, unknown> = {
+        fields: [input.labelKey, 'documentId'],
+        filters,
+        sort: `${input.labelKey}:asc`,
+      };
+
+      const query = input.checker
+        ? { ...(await input.checker.sanitizedQuery.read(baseQuery)), fields: baseQuery.fields, sort: baseQuery.sort }
+        : baseQuery;
+
+      const documents = strapi.documents(input.targetUid as never);
+
+      const [rows, total] = await Promise.all([
+        documents.findMany({
+          ...(query as object),
+          start: (input.page - 1) * input.pageSize,
+          limit: input.pageSize,
+        } as never) as unknown as Promise<Array<Record<string, unknown>>>,
+        documents.count({ ...(query as object) } as never) as unknown as Promise<number>,
+      ]);
+
+      const options = (rows ?? [])
+        .map((row) => ({
+          documentId: String(row.documentId ?? ''),
+          label: formatScalar(row[input.labelKey]),
+        }))
+        .filter((option) => option.documentId.length > 0)
+        .map((option) => ({
+          ...option,
+          // A blank label would render as an unpickable empty row, so fall back to the id.
+          label: option.label.length > 0 ? option.label : option.documentId,
+        }));
+
+      return { options, total: total ?? options.length, page: input.page, pageSize: input.pageSize };
     },
 
     async countFor(request: ExportRequest): Promise<number> {

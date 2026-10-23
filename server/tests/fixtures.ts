@@ -162,6 +162,7 @@ export function makeCollectionConfig(overrides: Partial<CollectionConfig> = {}):
     allowExport: true,
     excludeFields: [],
     relationLookupKeys: {},
+    relationLabelKeys: {},
     identifierField: 'documentId',
     ...overrides,
   };

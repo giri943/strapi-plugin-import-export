@@ -52,7 +52,14 @@ export interface BuildColumnsOptions {
   maxDepth?: number;
   /** Per-target-content-type attribute used to match relations, keyed by content-type uid. */
   relationLookupKeys?: Record<string, string>;
+  /**
+   * Per-target attribute shown in the readable label column. An empty string switches the column
+   * off for that target; leaving a target out falls back to a guess from the usual label names.
+   */
+  relationLabelKeys?: Record<string, string>;
   mediaLookupKey?: string;
+  /** Attribute of a media file shown in its label column, or '' for none. */
+  mediaLabelKey?: string;
   /** Field paths an administrator has excluded for this collection. */
   excludeFields?: readonly string[];
 }
@@ -101,7 +108,9 @@ export function buildColumns(
     repeatableColumns: Math.max(1, options.repeatableColumns ?? DEFAULTS.repeatableColumns),
     maxDepth: Math.max(1, options.maxDepth ?? DEFAULTS.maxDepth),
     relationLookupKeys: options.relationLookupKeys ?? {},
+    relationLabelKeys: options.relationLabelKeys ?? {},
     mediaLookupKey: options.mediaLookupKey ?? DEFAULTS.mediaLookupKey,
+    mediaLabelKey: options.mediaLabelKey,
     excludeFields: new Set(options.excludeFields ?? []),
   };
 
@@ -181,7 +190,9 @@ type ResolvedOptions = {
   repeatableColumns: number;
   maxDepth: number;
   relationLookupKeys: Record<string, string>;
+  relationLabelKeys: Record<string, string>;
   mediaLookupKey: string;
+  mediaLabelKey?: string;
   excludeFields: Set<string>;
 };
 
@@ -213,7 +224,7 @@ function expandAttribute(
       return describeRelation(resolver, options, path, attribute as RelationAttribute);
 
     case 'media':
-      return [describeMedia(options, path, attribute as MediaAttribute)];
+      return describeMedia(options, path, attribute as MediaAttribute);
 
     case 'json':
       return [
@@ -331,7 +342,7 @@ function describeRelation(
   const multiple = attribute.relation === 'oneToMany' || attribute.relation === 'manyToMany';
   const targetLabel = displayNameOf(target);
 
-  return [
+  const columns: ColumnDescriptor[] = [
     {
       header: formatHeader({ path, lookupKey }),
       kind: 'relation',
@@ -348,31 +359,98 @@ function describeRelation(
         : `A single ${targetLabel} entry matched on "${lookupKey}".`,
     },
   ];
+
+  const labelKey = resolveRelationLabelKey(options, attribute.target, target, lookupKey);
+  if (labelKey) {
+    columns.push(
+      describeLabelColumn({
+        path,
+        attribute,
+        labelKey,
+        targetUid: attribute.target,
+        multiple,
+        targetLabel,
+      })
+    );
+  }
+
+  return columns;
+}
+
+/**
+ * A second, read-only column holding something a person can recognise.
+ *
+ * The matching column has to carry a value that identifies exactly one entry, which in practice
+ * means `documentId` for most collections. That makes a correct export unreadable. Rather than
+ * trade one for the other, the label travels alongside it and the import ignores it.
+ */
+function describeLabelColumn(input: {
+  path: ColumnSegment[];
+  attribute: RelationAttribute | MediaAttribute;
+  labelKey: string;
+  targetUid: string;
+  multiple: boolean;
+  targetLabel: string;
+}): ColumnDescriptor {
+  return {
+    header: formatHeader({ path: input.path, lookupKey: input.labelKey }),
+    kind: input.attribute.type === 'media' ? 'media' : 'relation',
+    path: input.path,
+    attribute: input.attribute,
+    lookupKey: input.labelKey,
+    targetUid: input.targetUid,
+    multiple: input.multiple,
+    required: false,
+    requiredInFile: false,
+    readOnly: true,
+    isLabel: true,
+    hint: `The ${input.targetLabel} "${input.labelKey}", for reading. Present in exports, ignored on import.`,
+  };
 }
 
 function describeMedia(
   options: ResolvedOptions,
   path: ColumnSegment[],
   attribute: MediaAttribute
-): ColumnDescriptor {
+): ColumnDescriptor[] {
   const lookupKey = options.mediaLookupKey;
   const multiple = attribute.multiple === true;
 
-  return {
-    header: formatHeader({ path, lookupKey }),
-    kind: 'media',
-    path,
-    attribute,
-    lookupKey,
-    targetUid: MEDIA_UID,
-    multiple,
-    required: attribute.required === true,
-    requiredInFile: isTopLevel(path) && attribute.required === true,
-    readOnly: false,
-    hint: multiple
-      ? `One or more existing Media Library files matched on "${lookupKey}", separated by the list delimiter.`
-      : `An existing Media Library file matched on "${lookupKey}".`,
-  };
+  const columns: ColumnDescriptor[] = [
+    {
+      header: formatHeader({ path, lookupKey }),
+      kind: 'media',
+      path,
+      attribute,
+      lookupKey,
+      targetUid: MEDIA_UID,
+      multiple,
+      required: attribute.required === true,
+      requiredInFile: isTopLevel(path) && attribute.required === true,
+      readOnly: false,
+      hint: multiple
+        ? `One or more existing Media Library files matched on "${lookupKey}", separated by the list delimiter.`
+        : `An existing Media Library file matched on "${lookupKey}".`,
+    },
+  ];
+
+  // Media is matched on `name` by default, which is already readable, so a label column is only
+  // worth adding when the match key is something opaque like an id or a hash.
+  const labelKey = options.mediaLabelKey;
+  if (labelKey !== undefined && labelKey !== '' && labelKey !== lookupKey) {
+    columns.push(
+      describeLabelColumn({
+        path,
+        attribute,
+        labelKey,
+        targetUid: MEDIA_UID,
+        multiple,
+        targetLabel: 'file',
+      })
+    );
+  }
+
+  return columns;
 }
 
 function describeScalar(path: ColumnSegment[], attribute: ScalarAttribute): ColumnDescriptor {
@@ -420,6 +498,65 @@ function resolveRelationLookupKey(
     return configured;
   }
   return DEFAULT_RELATION_LOOKUP_KEY;
+}
+
+/**
+ * Picks the attribute used for the readable label column, or undefined when there is nothing
+ * worth adding.
+ *
+ * An explicit empty string in the settings switches the column off for that target, which is
+ * why this distinguishes "not configured" from "configured as none".
+ */
+function resolveRelationLabelKey(
+  options: ResolvedOptions,
+  targetUid: string,
+  target: ContentTypeSchema,
+  lookupKey: string
+): string | undefined {
+  const configured = options.relationLabelKeys[targetUid];
+
+  if (configured !== undefined) {
+    if (configured === '') return undefined;
+    if (!isUsableLabelKey(target, configured)) return undefined;
+    // The matching column already carries this value; a second identical column is noise.
+    return configured === lookupKey ? undefined : configured;
+  }
+
+  const guessed = guessLabelKey(target);
+  return guessed && guessed !== lookupKey ? guessed : undefined;
+}
+
+/** Attribute names that conventionally hold the human-facing name of an entry. */
+const LABEL_CANDIDATES = ['name', 'title', 'label', 'displayName', 'heading'] as const;
+
+export function guessLabelKey(schema: ContentTypeSchema): string | undefined {
+  return LABEL_CANDIDATES.find((candidate) => isUsableLabelKey(schema, candidate));
+}
+
+/**
+ * A label only has to be readable, so any plain text attribute qualifies. Uniqueness is
+ * deliberately not required — that is the whole reason this is separate from the lookup key.
+ */
+export function isUsableLabelKey(schema: ContentTypeSchema, key: string): boolean {
+  const attribute = schema.attributes[key];
+  if (!attribute) return false;
+  if (isSensitiveAttribute(attribute)) return false;
+
+  return LABEL_FRIENDLY_TYPES.has(attribute.type);
+}
+
+const LABEL_FRIENDLY_TYPES = new Set([
+  'string',
+  'text',
+  'email',
+  'uid',
+  'enumeration',
+  'integer',
+  'biginteger',
+]);
+
+export function listUsableLabelKeys(schema: ContentTypeSchema): string[] {
+  return Object.keys(schema.attributes).filter((name) => isUsableLabelKey(schema, name));
 }
 
 /**

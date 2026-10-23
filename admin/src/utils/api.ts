@@ -20,7 +20,10 @@ export interface ColumnDescriptor {
   targetUid?: string;
   multiple: boolean;
   required: boolean;
+  requiredInFile?: boolean;
   readOnly: boolean;
+  /** The readable companion of a relation or media column. Export only. */
+  isLabel?: boolean;
   hint?: string;
   attribute?: { type?: string; enum?: string[] };
 }
@@ -31,6 +34,7 @@ export interface CollectionConfig {
   allowExport: boolean;
   excludeFields: string[];
   relationLookupKeys: Record<string, string>;
+  relationLabelKeys: Record<string, string>;
   identifierField: string;
 }
 
@@ -97,9 +101,19 @@ export interface SettingsResponse {
   defaults: { collection: CollectionConfig };
 }
 
+export interface RelationTarget {
+  uid: string;
+  displayName: string;
+  /** Fields that can identify one entry, so they are safe as the import match key. */
+  lookupKeys: string[];
+  /** Fields readable enough for the label column. Uniqueness is not required. */
+  labelKeys: string[];
+  suggestedLabelKey?: string;
+}
+
 export interface CollectionDescription extends CollectionSummary {
   columns: ColumnDescriptor[];
-  relationTargets: Array<{ uid: string; displayName: string; lookupKeys: string[] }>;
+  relationTargets: RelationTarget[];
   unsupported: Array<{ field: string; reason: string }>;
   config: CollectionConfig;
 }
@@ -108,12 +122,43 @@ export interface ColumnsResponse {
   uid: string;
   columns: ColumnDescriptor[];
   identifierField: string;
+  identifierHeader: string;
   allowImport: boolean;
   allowExport: boolean;
   defaultImportMode: ImportMode;
   multiValueDelimiter: string;
   csvDelimiter: string;
+  filterableRelations: string[];
+  filterableDates: string[];
+  hasDraftAndPublish: boolean;
+  localized: boolean;
   limits: { maxFileSizeMb: number; maxRows: number; maxColumns: number };
+}
+
+export interface RelationOption {
+  documentId: string;
+  label: string;
+}
+
+export interface RelationOptionsResponse {
+  field: string;
+  targetUid: string;
+  labelKey: string;
+  options: RelationOption[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface RelationFilter {
+  field: string;
+  documentIds: string[];
+}
+
+export interface DateFilter {
+  field: string;
+  from?: string;
+  to?: string;
 }
 
 export interface RowError {
@@ -241,6 +286,28 @@ export async function fetchColumns(uid: string): Promise<ColumnsResponse> {
   try {
     const { data } = await get(`${base()}/content/${encodeURIComponent(uid)}/columns`);
     return data as ColumnsResponse;
+  } catch (error) {
+    throw new Error(unwrapError(error));
+  }
+}
+
+export async function fetchRelationOptions(
+  uid: string,
+  field: string,
+  options: { search?: string; page?: number; pageSize?: number } = {}
+): Promise<RelationOptionsResponse> {
+  const { get } = getFetchClient();
+
+  const params = new URLSearchParams({ field });
+  if (options.search) params.set('q', options.search);
+  params.set('page', String(options.page ?? 1));
+  params.set('pageSize', String(options.pageSize ?? 100));
+
+  try {
+    const { data } = await get(
+      `${base()}/content/${encodeURIComponent(uid)}/relation-options?${params.toString()}`
+    );
+    return data as RelationOptionsResponse;
   } catch (error) {
     throw new Error(unwrapError(error));
   }

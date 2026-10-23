@@ -22,8 +22,14 @@ describe('buildPopulate', () => {
     expect(populate.author.fields).not.toContain('bio');
   });
 
-  it('asks only for documentId and id when no key is configured', () => {
-    expect(tree().author.fields.sort()).toEqual(['documentId', 'id']);
+  it('asks for the guessed label as well, since the label column renders from it', () => {
+    expect(tree().author.fields.sort()).toEqual(['documentId', 'id', 'name']);
+  });
+
+  it('asks only for the identifiers when the label column is switched off', () => {
+    const populate = tree({ relationLabelKeys: { [AUTHOR_UID]: '' } });
+
+    expect(populate.author.fields.sort()).toEqual(['documentId', 'id']);
   });
 
   it('narrows media to the file identity fields', () => {

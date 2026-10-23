@@ -89,6 +89,12 @@
       "target": "api::tag.tag",
       "inversedBy": "articles"
     },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category",
+      "inversedBy": "articles"
+    },
     "cover": {
       "type": "media",
       "multiple": false,

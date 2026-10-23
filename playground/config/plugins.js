@@ -33,6 +33,12 @@ module.exports = () => ({
             'api::tag.tag': 'slug',
           },
         },
+        'api::category.category': {
+          enabled: true,
+          allowImport: true,
+          allowExport: true,
+          identifierField: 'slug',
+        },
         'api::author.author': {
           enabled: true,
           allowImport: true,

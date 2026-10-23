@@ -24,6 +24,7 @@ import {
 import { Check } from '@strapi/icons';
 import { Layouts, Page, useNotification, useRBAC } from '@strapi/strapi/admin';
 import pluginPermissions, { RBAC_FLAGS, type AllowedActions } from '../permissions';
+import { RelationKeysDialog } from '../components/RelationKeysDialog';
 import {
   fetchSettings,
   saveSettings,
@@ -54,6 +55,7 @@ const LOCKED: CollectionConfig = {
   allowExport: false,
   excludeFields: [],
   relationLookupKeys: {},
+  relationLabelKeys: {},
   identifierField: 'documentId',
 };
 
@@ -69,6 +71,7 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [relationsFor, setRelationsFor] = useState<string | null>(null);
 
   const canEdit = Boolean((allowedActions as AllowedActions)[RBAC_FLAGS.updateConfig]);
 
@@ -217,7 +220,7 @@ const SettingsPage = () => {
                   title="Collections"
                   hint="Nothing is exposed until you switch it on here. This applies to every role, including super admins."
                 >
-                  <Table colCount={5} rowCount={data.candidates.length}>
+                  <Table colCount={6} rowCount={data.candidates.length}>
                     <Thead>
                       <Tr>
                         <Th>
@@ -234,6 +237,9 @@ const SettingsPage = () => {
                         </Th>
                         <Th>
                           <Typography variant="sigma">Match rows on</Typography>
+                        </Th>
+                        <Th>
+                          <Typography variant="sigma">Relations</Typography>
                         </Th>
                       </Tr>
                     </Thead>
@@ -298,6 +304,16 @@ const SettingsPage = () => {
                                   </SingleSelectOption>
                                 ))}
                               </SingleSelect>
+                            </Td>
+                            <Td>
+                              <Button
+                                variant="tertiary"
+                                size="S"
+                                onClick={() => setRelationsFor(candidate.uid)}
+                                disabled={!config.enabled}
+                              >
+                                Configure
+                              </Button>
                             </Td>
                           </Tr>
                         );
@@ -575,6 +591,20 @@ const SettingsPage = () => {
             )}
           </Flex>
         </Layouts.Content>
+
+        {relationsFor && data ? (
+          <RelationKeysDialog
+            uid={relationsFor}
+            displayName={
+              data.candidates.find((candidate) => candidate.uid === relationsFor)?.displayName ??
+              relationsFor
+            }
+            config={collectionOf(relationsFor)}
+            canEdit={canEdit}
+            onApply={(patch) => patchCollection(relationsFor, patch)}
+            onClose={() => setRelationsFor(null)}
+          />
+        ) : null}
       </Main>
     </Page.Protect>
   );

@@ -162,6 +162,11 @@ export interface ColumnDescriptor {
   requiredInFile: boolean;
   /** Present in exports and templates but ignored on import. */
   readOnly: boolean;
+  /**
+   * True for the readable companion of a relation or media column. It sits next to the column
+   * that actually identifies the entry and exists only so an export can be read by a person.
+   */
+  isLabel?: boolean;
   /** Short hint rendered in the admin column mapper and the template guide. */
   hint?: string;
 }
