@@ -164,6 +164,25 @@ makes Excel on Windows read UTF-8 instead of mangling accented characters.
 strip a BOM if present. A file saved by Excel in a locale that uses semicolons imports without you
 changing anything.
 
+## Quoting
+
+Any exported cell containing a space, colon, semicolon, pipe or tab is written inside double
+quotes, even where the CSV format would not require it:
+
+```
+title,"category:name"
+"News one",News
+Uncategorised,
+```
+
+The reason is the delimiter guess a spreadsheet makes when it opens a file. A one-column export
+contains no commas at all, so Excel and LibreOffice fall back to other separators — LibreOffice
+tries whitespace and a colon — and `Girish Soman` lands in two cells while the header
+`category:name` splits in half. A quoted cell is atomic to every reader whichever separator it
+guessed.
+
+Numbers are left unquoted so a spreadsheet still treats them as numbers.
+
 ## Empty cells
 
 | Situation | Result |

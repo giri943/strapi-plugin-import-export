@@ -1,6 +1,6 @@
 import { stringify } from 'csv-stringify/sync';
 import type { Core } from '@strapi/strapi';
-import { UTF8_BOM, escapeFormula } from '../core/csv';
+import { AMBIGUOUS_FIELD_CHARS, UTF8_BOM, escapeFormula } from '../core/csv';
 import type { ColumnDescriptor } from '../core/types';
 import type { PluginSettings } from './settings';
 
@@ -51,6 +51,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       const content = stringify([importable.map((column) => column.header)], {
         delimiter: settings.csvDelimiter,
         record_delimiter: 'windows',
+        quoted_match: AMBIGUOUS_FIELD_CHARS,
       });
 
       return {
@@ -84,6 +85,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       const content = stringify(rows, {
         delimiter: settings.csvDelimiter,
         record_delimiter: 'windows',
+        quoted_match: AMBIGUOUS_FIELD_CHARS,
       });
 
       return {

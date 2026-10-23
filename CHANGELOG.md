@@ -44,6 +44,11 @@ release will be `1.1.0`.
 
 ### Fixed
 
+- A cell containing a space, colon, semicolon, pipe or tab is now always quoted on export. A
+  one-column file holds no commas, so a spreadsheet opening it falls back to guessing the
+  separator: LibreOffice tries whitespace and a colon, which split `Girish Soman` across two
+  cells and cut the header `category:name` in half. Numbers stay unquoted so they are still read
+  as numbers. Applies to exports, templates, the column guide and the error report.
 - Every CSV download (template, column guide, export, error report) failed in the browser with
   `Failed to execute 'createObjectURL' on 'URL': Overload resolution failed`. Strapi's fetch
   client `post` does not forward `responseType` to its response interceptor, so a `text/csv`

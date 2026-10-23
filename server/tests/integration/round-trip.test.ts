@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { parse } from 'csv-parse/sync';
 import { buildColumns } from '../../src/core/schema';
 import { createSchemaResolver } from '../../src/utils/strapi-schema';
 import { PLUGIN_ACTIONS } from '../../src/permissions';
@@ -367,9 +368,9 @@ describe('export against a real database', () => {
 
   it('writes a header row that matches the template', async () => {
     const csv = await exportToString();
-    const firstLine = csv.replace(/^\uFEFF/, '').split(/\r?\n/)[0];
+    const records = parse(csv, { bom: true, skip_empty_lines: true }) as string[][];
 
-    expect(firstLine.split(',')).toEqual(columns.map((column) => column.header));
+    expect(records[0]).toEqual(columns.map((column) => column.header));
   });
 
   it('starts with a BOM so Excel reads UTF-8', async () => {

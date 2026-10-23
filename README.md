@@ -32,23 +32,38 @@ compiled into your admin bundle, so skipping it leaves the CSV menu missing with
 
 ### Installing a local build
 
+One command, run in the plugin repository:
+
 ```bash
-# in the plugin repository
+npm run pack:local -- --install "/path/to/your/strapi-project"
+```
+
+It builds the plugin, packs a uniquely named tarball, installs it with whichever package manager
+the target project uses, clears the admin build caches, rebuilds the admin panel, and then checks
+that every file it installed matches the build it just made. Set `IE_INSTALL_TARGET` once and the
+path can be dropped:
+
+```bash
+export IE_INSTALL_TARGET=/path/to/your/strapi-project
 npm run pack:local
 ```
 
-That builds the plugin and prints a ready-to-paste command, for example:
+Add `--skip-build` to skip the admin rebuild when the change is server-side only.
+
+Restart Strapi afterwards, then **hard-refresh the browser** (Ctrl+Shift+R) — the cached admin
+bundle still holds the previous build.
+
+Without `--install` the script only packs, and prints the commands to run by hand:
 
 ```bash
 # in your Strapi project — npm
-npm install "/tmp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023105159.tgz" && npm run build
+npm install "/tmp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023105159.tgz"
 
 # in your Strapi project — yarn
-yarn add "file:/tmp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023105159.tgz" && yarn build
+yarn add "file:/tmp/strapi-plugin-import-export-packs/strapi-plugin-import-export-0.1.0-20261023105159.tgz"
 ```
 
-Restart Strapi, then **hard-refresh the browser** (Ctrl+Shift+R) — the cached admin bundle still
-holds the previous build.
+Then delete `node_modules/.strapi/vite`, run the project's own build, and restart.
 
 #### Why `pack:local` rather than plain `npm pack`
 
@@ -61,6 +76,10 @@ rebuilt tarball with the *same filename* therefore does one of three unhelpful t
 
 `npm run pack:local` writes a timestamped filename each time, which has never been cached, so the
 install always reflects the build. Verified against yarn 1.22 and npm 10.
+
+A cache hit is silent — the install reports success having unpacked an older copy — so with
+`--install` the script hashes every file it installed and compares it against the build. A
+mismatch fails the command instead of leaving you to debug a UI that is showing you stale code.
 
 #### If the database driver complains about a Node version
 

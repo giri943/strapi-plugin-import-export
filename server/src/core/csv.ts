@@ -3,6 +3,18 @@ export const SUPPORTED_DELIMITERS = [',', ';', '\t', '|'] as const;
 export type CsvDelimiter = (typeof SUPPORTED_DELIMITERS)[number];
 
 /**
+ * Any written field containing one of these is quoted, on top of the quoting the CSV format
+ * already requires.
+ *
+ * Excel and LibreOffice guess the separator when opening a file, and the guess goes wrong when
+ * the file holds no instance of the delimiter it was written with — a one-column export being
+ * the obvious case. LibreOffice then falls back to whitespace and a colon, so `Girish Soman`
+ * lands in two cells and the header `category:name` splits in half. A quoted field is atomic to
+ * every reader whichever separator it picked, so quoting removes the guess.
+ */
+export const AMBIGUOUS_FIELD_CHARS = /[\s;:|]/;
+
+/**
  * Leading characters that make Excel, LibreOffice and Google Sheets treat a cell as a formula
  * rather than text.
  */

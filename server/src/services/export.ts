@@ -3,7 +3,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable, type Writable } from 'node:stream';
 import type { Core } from '@strapi/strapi';
 import { PLUGIN_NAME } from '../constants';
-import { UTF8_BOM } from '../core/csv';
+import { AMBIGUOUS_FIELD_CHARS, UTF8_BOM } from '../core/csv';
 import { buildPopulate } from '../core/populate';
 import { buildFilters, type DateFilter, type RelationFilter } from '../core/export-filters';
 import { renderRow } from '../core/render-row';
@@ -146,6 +146,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       const serialiser = stringify({
         delimiter: request.settings.csvDelimiter,
         record_delimiter: 'windows',
+        quoted_match: AMBIGUOUS_FIELD_CHARS,
       });
 
       const source = Readable.from(

@@ -11,7 +11,7 @@ import {
   type JobKind,
   type JobStatus,
 } from '../constants';
-import { UTF8_BOM } from '../core/csv';
+import { AMBIGUOUS_FIELD_CHARS, UTF8_BOM } from '../core/csv';
 import type { ImportMode, RowError } from '../core/types';
 import { jobLogLine } from '../utils/safe-log';
 import { discardStagedFile } from '../utils/temp-file';
@@ -265,6 +265,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       const content = stringify(rows, {
         delimiter: settings.csvDelimiter,
         record_delimiter: 'windows',
+        quoted_match: AMBIGUOUS_FIELD_CHARS,
       });
 
       const base = job.contentTypeUid.replace(/[^A-Za-z0-9._-]/g, '-');

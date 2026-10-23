@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { parse } from 'csv-parse/sync';
+import { stringify } from 'csv-stringify/sync';
 import {
+  AMBIGUOUS_FIELD_CHARS,
   UTF8_BOM,
   escapeFormula,
   firstLineOf,
@@ -104,5 +107,79 @@ describe('isSupportedDelimiter', () => {
     expect([',', ';', '\t', '|'].every(isSupportedDelimiter)).toBe(true);
     expect(isSupportedDelimiter(':')).toBe(false);
     expect(isSupportedDelimiter('')).toBe(false);
+  });
+});
+
+describe('AMBIGUOUS_FIELD_CHARS', () => {
+  const matches = (value: string) => AMBIGUOUS_FIELD_CHARS.test(value);
+
+  it.each(['Girish Soman', 'category:name', 'a;b', 'a|b', 'a\tb', '2026-10-23T12:00:00.000Z'])(
+    'flags %j for quoting',
+    (value) => {
+      expect(matches(value)).toBe(true);
+    }
+  );
+
+  it.each(['documentId', 'news', '12', '4.5', '-5', '', 'ada@example.com', '2026-10-23'])(
+    'leaves %j unquoted',
+    (value) => {
+      expect(matches(value)).toBe(false);
+    }
+  );
+});
+
+describe('writing a file a spreadsheet cannot mis-split', () => {
+  const write = (rows: string[][]) =>
+    stringify(rows, {
+      delimiter: ',',
+      record_delimiter: 'windows',
+      quoted_match: AMBIGUOUS_FIELD_CHARS,
+    });
+
+  it('quotes a one-column value holding a space', () => {
+    expect(write([['full_name'], ['Girish Soman']])).toBe(
+      'full_name\r\n"Girish Soman"\r\n'
+    );
+  });
+
+  it('quotes a relation label header so a colon cannot split it', () => {
+    expect(write([['enquiry_type:title'], ['Contract Manufacturing']])).toBe(
+      '"enquiry_type:title"\r\n"Contract Manufacturing"\r\n'
+    );
+  });
+
+  it('leaves numbers bare so a spreadsheet still reads them as numbers', () => {
+    expect(write([['views', 'rating'], ['12', '4.5']])).toBe('views,rating\r\n12,4.5\r\n');
+  });
+
+  it('survives a reader that guesses space as the separator', () => {
+    const file = write([['full_name'], ['Girish Soman']]);
+
+    expect(parse(file, { delimiter: ' ', quote: '"' })).toEqual([
+      ['full_name'],
+      ['Girish Soman'],
+    ]);
+  });
+
+  it('splits on a space guess without the quoting, which is the bug it fixes', () => {
+    const file = stringify([['full_name'], ['Girish Soman']], {
+      delimiter: ',',
+      record_delimiter: 'windows',
+    });
+
+    expect(parse(file, { delimiter: ' ', quote: '"', relax_column_count: true })).toEqual([
+      ['full_name'],
+      ['Girish', 'Soman'],
+    ]);
+  });
+
+  it('still round trips through the plugin parser', () => {
+    const rows = [
+      ['documentId', 'title', 'views', 'category:name'],
+      ['abc', 'News one', '12', 'News'],
+      ['def', '', '0', ''],
+    ];
+
+    expect(parse(write(rows), { bom: true })).toEqual(rows);
   });
 });

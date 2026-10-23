@@ -36,7 +36,15 @@ jobs:
       - name: Full check
         run: npm run check:all
 
+      # npm only issues a provenance attestation for a package built from a public repository,
+      # because the attestation itself is public. Asking for it from a private repository fails
+      # the publish outright, so the flag is added only when it can be honoured.
       - name: Publish
-        run: npm publish --access public --provenance
+        run: |
+          if [ "${{ github.event.repository.visibility }}" = "public" ]; then
+            npm publish --access public --provenance
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

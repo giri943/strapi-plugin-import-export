@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { parse } from 'csv-parse/sync';
 import { PassThrough } from 'node:stream';
 import { buildColumns } from '../../src/core/schema';
 import { selectColumns } from '../../src/core/select-columns';
@@ -55,8 +56,10 @@ async function exportCsv(body: Record<string, unknown> = {}): Promise<string> {
   return Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '');
 }
 
-const rowsOf = (csv: string) => csv.trim().split(/\r?\n/).slice(1);
-const headerOf = (csv: string) => csv.trim().split(/\r?\n/)[0]?.split(',') ?? [];
+const recordsOf = (csv: string): string[][] =>
+  parse(csv, { bom: true, skip_empty_lines: true }) as string[][];
+const headerOf = (csv: string) => recordsOf(csv)[0] ?? [];
+const rowsOf = (csv: string) => recordsOf(csv).slice(1);
 
 beforeAll(async () => {
   app = await bootStrapi();
@@ -111,15 +114,15 @@ describe('label columns against a real schema', () => {
     const header = headerOf(csv);
     const nameIndex = header.indexOf('category:name');
     const idIndex = header.indexOf('category:documentId');
+    const titleIndex = header.indexOf('title');
 
     expect(nameIndex).toBeGreaterThan(-1);
 
-    const newsRow = rowsOf(csv).find((row) => row.startsWith('"') === false && row.includes('News one'));
+    const newsRow = rowsOf(csv).find((row) => row[titleIndex] === 'News one');
     expect(newsRow).toBeDefined();
 
-    const cells = (newsRow as string).split(',');
-    expect(cells[nameIndex]).toBe('News');
-    expect(cells[idIndex]).toBe(newsId);
+    expect((newsRow as string[])[nameIndex]).toBe('News');
+    expect((newsRow as string[])[idIndex]).toBe(newsId);
   });
 });
 

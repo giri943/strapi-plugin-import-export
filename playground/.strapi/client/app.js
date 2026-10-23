@@ -4,7 +4,7 @@
  */
 
 import usersPermissions from "@strapi/plugin-users-permissions/strapi-admin";
-import strapiImportExport from "strapi-plugin-import-export/strapi-admin";
+import strapiImportExport from "../../.././dist/admin/index.mjs";
 import { renderAdmin } from "@strapi/strapi/admin";
 
 renderAdmin(document.getElementById("strapi"), {

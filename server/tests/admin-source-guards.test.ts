@@ -112,6 +112,42 @@ describe('the local packing script', () => {
     expect(script).toContain('yarn add');
     expect(script).toContain('npm install');
   });
+
+  it('can install into a target project in the same run', () => {
+    const code = codeOnly(script);
+
+    expect(code).toContain("flag('install')");
+    expect(code).toContain('IE_INSTALL_TARGET');
+  });
+
+  it('picks the package manager from the target lockfile', () => {
+    const code = codeOnly(script);
+
+    expect(code).toContain('yarn.lock');
+    expect(code).toContain('pnpm-lock.yaml');
+  });
+
+  /**
+   * A replaced plugin can still be served from Vite's pre-bundled dependency cache, which is
+   * keyed on resolved paths rather than on file contents.
+   */
+  it('clears the admin build caches after installing', () => {
+    const code = codeOnly(script);
+
+    expect(code).toContain("'.strapi', 'vite'");
+    expect(code).toContain("'.strapi', 'client'");
+  });
+
+  /**
+   * A cache hit is silent: the install reports success having unpacked an older copy. Hashing
+   * every file is what turns that into a failure instead of a confusing debugging session.
+   */
+  it('fails when the installed files do not match the build', () => {
+    const code = codeOnly(script);
+
+    expect(code).toContain('sha256');
+    expect(code).toContain('process.exit(1)');
+  });
 });
 
 describe('permission flags read by components', () => {
