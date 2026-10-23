@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck server
+        run: npm run test:ts:back
+
+      - name: Typecheck admin
+        run: npm run test:ts:front
+
+      - name: Typecheck tests
+        run: npm run test:ts:tests
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  integration:
+    name: Integration (Strapi ${{ matrix.strapi }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The lowest version the peer range claims to support, and the current one. A plugin that
+        # only works against latest should say so in its peerDependencies instead.
+        strapi: ['5.0.0', 'latest']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Pin Strapi
+        if: matrix.strapi != 'latest'
+        run: npm install --no-save @strapi/strapi@${{ matrix.strapi }}
+
+      - name: Build
+        run: npm run build
+
+      - name: Integration tests
+        run: npm run test:integration

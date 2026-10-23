@@ -1,0 +1,19 @@
+{
+  "extends": "@strapi/typescript-utils/tsconfigs/server",
+  "include": ["./src"],
+  "compilerOptions": {
+    "rootDir": "../",
+    "ignoreDeprecations": "5.0",
+    /**
+     * The Strapi preset ships `strict: false`. Without `strictNullChecks`, narrowing a
+     * discriminated union by its `ok` flag silently stops working, which is the shape every
+     * validation result in this plugin uses.
+     */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": false,
+    "lib": ["ES2021"],
+    "target": "ES2021"
+  }
+}

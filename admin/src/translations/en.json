@@ -1,0 +1,6 @@
+{
+  "plugin.name": "CSV Import & Export",
+  "plugin.description": "Bulk CSV import and export for your collections.",
+  "settings.title": "CSV Import & Export",
+  "settings.subtitle": "Choose which collections can be imported or exported, and which roles may do it."
+}

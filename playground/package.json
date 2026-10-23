@@ -1,0 +1,26 @@
+{
+  "name": "strapi-plugin-import-export-playground",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Example Strapi 5 app with a content type covering every attribute kind the CSV plugin supports.",
+  "license": "MIT",
+  "scripts": {
+    "develop": "strapi develop",
+    "start": "strapi start",
+    "build": "strapi build",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "@strapi/plugin-users-permissions": "^5.59.0",
+    "@strapi/strapi": "^5.59.0",
+    "better-sqlite3": "11.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.3",
+    "strapi-plugin-import-export": "file:C:/Users/USER/AppData/Local/Temp/strapi-plugin-import-export-0.1.0.tgz",
+    "styled-components": "^6.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

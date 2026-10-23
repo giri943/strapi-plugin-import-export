@@ -1,0 +1,108 @@
+{
+  "name": "strapi-plugin-import-export",
+  "version": "0.1.0",
+  "description": "Bulk CSV import and export for Strapi 5 collections: dynamic schema discovery, downloadable templates, relation and component support, streaming jobs, and per-role collection permissions.",
+  "license": "MIT",
+  "author": "girish-soman",
+  "keywords": [
+    "strapi",
+    "strapi-plugin",
+    "strapi5",
+    "csv",
+    "csv-import",
+    "csv-export",
+    "bulk-import",
+    "bulk-export",
+    "import",
+    "export",
+    "data-migration",
+    "content-manager",
+    "rbac",
+    "csv-template",
+    "spreadsheet",
+    "excel"
+  ],
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./strapi-admin": {
+      "types": "./dist/admin/src/index.d.ts",
+      "source": "./admin/src/index.ts",
+      "import": "./dist/admin/index.mjs",
+      "require": "./dist/admin/index.js",
+      "default": "./dist/admin/index.js"
+    },
+    "./strapi-server": {
+      "types": "./dist/server/src/index.d.ts",
+      "source": "./server/src/index.ts",
+      "import": "./dist/server/index.mjs",
+      "require": "./dist/server/index.js",
+      "default": "./dist/server/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "strapi-plugin build",
+    "prepublishOnly": "strapi-plugin build",
+    "watch": "strapi-plugin watch",
+    "watch:link": "strapi-plugin watch:link",
+    "verify": "strapi-plugin verify",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:ts:front": "npx tsc -p admin/tsconfig.json --noEmit",
+    "test:ts:back": "npx tsc -p server/tsconfig.json --noEmit",
+    "test:ts:tests": "npx tsc -p server/tsconfig.test.json --noEmit",
+    "check": "npm run test:ts:back && npm run test:ts:front && npm run test:ts:tests && npm run test && npm run build",
+    "check:all": "npm run check && npm run test:integration"
+  },
+  "dependencies": {
+    "csv-parse": "^7.0.3",
+    "csv-stringify": "^6.9.0"
+  },
+  "devDependencies": {
+    "@strapi/design-system": "^2.2.4",
+    "@strapi/icons": "^2.2.4",
+    "@strapi/sdk-plugin": "^6.1.1",
+    "@strapi/strapi": "^5.59.0",
+    "@strapi/typescript-utils": "^5.59.0",
+    "@strapi/utils": "^5.59.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "better-sqlite3": "^11.3.0",
+    "prettier": "^3.8.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-intl": "^6.8.9",
+    "react-router-dom": "^6.30.3",
+    "styled-components": "^6.4.0",
+    "typescript": "^5.6.0",
+    "vitest": "3.2.7"
+  },
+  "peerDependencies": {
+    "@strapi/design-system": "^2.0.0",
+    "@strapi/icons": "^2.0.0",
+    "@strapi/sdk-plugin": "^6.0.0",
+    "@strapi/strapi": "^5.0.0",
+    "@strapi/utils": "^5.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0",
+    "styled-components": "^6.0.0"
+  },
+  "strapi": {
+    "kind": "plugin",
+    "name": "strapi-import-export",
+    "displayName": "CSV Import & Export",
+    "description": "Bulk CSV import and export for your collections, with downloadable templates, validation reports and per-role collection permissions."
+  }
+}
