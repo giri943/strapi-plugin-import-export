@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 300" width="1100" height="300" role="img" aria-label="CSV Import and Export for Strapi 5">
+  <defs>
+    <linearGradient id="wmBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6563FF"/>
+      <stop offset="1" stop-color="#3B38E0"/>
+    </linearGradient>
+    <clipPath id="wmSheet">
+      <rect x="96" y="96" width="320" height="320" rx="32"/>
+    </clipPath>
+  </defs>
+
+  <g transform="translate(30 22) scale(0.5)">
+    <rect width="512" height="512" rx="112" fill="url(#wmBg)"/>
+    <rect x="96" y="96" width="320" height="320" rx="32" fill="#FFFFFF"/>
+    <g clip-path="url(#wmSheet)">
+      <rect x="96" y="96" width="320" height="58" fill="#4945FF" opacity="0.16"/>
+      <g stroke="#4945FF" stroke-width="5" opacity="0.12">
+        <path d="M256 96V416"/>
+        <path d="M96 154H416"/>
+      </g>
+    </g>
+    <g stroke="#4945FF" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M196 180V336"/>
+      <path d="M160 300L196 336L232 300"/>
+      <path d="M316 336V180"/>
+      <path d="M280 216L316 180L352 216"/>
+    </g>
+  </g>
+
+  <g font-family="Inter, 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+    <text x="330" y="150" font-size="76" font-weight="700" fill="#1F1C9E" letter-spacing="-1">CSV Import &amp; Export</text>
+    <text x="332" y="206" font-size="38" font-weight="500" fill="#6563FF" letter-spacing="0.5">Bulk CSV for Strapi 5 collections</text>
+  </g>
+</svg>
